@@ -1,29 +1,31 @@
+// Copyright 2024 Ant Group Co., Ltd.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
-
-
-#include <algorithm>
-#include <future>
-#include <type_traits>
+#include <fstream>
 #include <vector>
-
-// #include "absl/std::strings/escaping.h"
-#include "absl/types/span.h"
 
 #include "examples/gc/aes_128_evaluator.h"
 #include "examples/gc/aes_128_garbler.h"
-#include "examples/gc/sha256_garbler.h"
 #include "examples/gc/sha256_evaluator.h"
+#include "examples/gc/sha256_garbler.h"
 #include "fmt/format.h"
 #include "gtest/gtest.h"
-#include "yacl/kernel/ot_kernel.h"
-#include "yacl/kernel/type/ot_store_utils.h"
+
 #include "yacl/crypto/block_cipher/symmetric_crypto.h"
 
-
-namespace examples::gc{
-
-
-
+namespace examples::gc {
+// 现在
 inline uint128_t Aes128(uint128_t k, uint128_t m) {
   crypto::SymmetricCrypto enc(crypto::SymmetricCrypto::CryptoType::AES128_ECB,
                               k);
@@ -43,84 +45,76 @@ uint128_t ReverseBytes(uint128_t x) {
 
 TEST(GCTest, SHA256Test) {
   std::shared_ptr<yacl::io::BFCircuit> circ_;
-  // 初始化
+
   GarblerSHA256* garbler = new GarblerSHA256();
   EvaluatorSHA256* evaluator = new EvaluatorSHA256();
 
+  // garbler->setup();
+  // evaluator->setup();
   std::future<void> thread1 = std::async([&] { garbler->setup(); });
   std::future<void> thread2 = std::async([&] { evaluator->setup(); });
   thread1.get();
   thread2.get();
-  
-  
-  // 电路读取
+
   std::string pth =
       fmt::format("{0}/yacl/io/circuit/data/{1}.txt",
                   std::filesystem::current_path().string(), "sha256");
   yacl::io::CircuitReader reader(pth);
   reader.ReadMeta();
   reader.ReadAllGates();
-  circ_ = reader.StealCirc();  // 指针
-
-  // 输入处理
-  // garbler->inputProcess(*circ_);
+  circ_ = reader.StealCirc();
 
   vector<uint8_t> sha256_result;
-  thread1 = std::async([&] { sha256_result = garbler->inputProcess(*circ_); });
-  thread2 = std::async([&] { evaluator->inputProcess(*circ_); });
-  thread1.get();
-  thread2.get();
-
-  // // OT  **************因为SHA256场景中输入都在混淆方，所以不需要进行OT***************
-  // thread1 = std::async([&] { evaluator -> onLineOT();});
-  // thread2 = std::async([&] { garbler -> onlineOT(); });
+  // thread1 = std::async([&] { sha256_result = garbler->inputProcess(*circ_);
+  // }); thread2 = std::async([&] { evaluator->inputProcess(*circ_); });
   // thread1.get();
   // thread2.get();
-  
+  sha256_result = garbler->inputProcess(*circ_);
+  evaluator->inputProcess(*circ_);
 
-  // 混淆方对整个电路进行混淆, 并将混淆表发送给evaluator
   garbler->GB();
   garbler->sendTable();
 
   evaluator->recvTable();
-  
 
-  // // 计算方进行计算 按拓扑顺序进行计算
   evaluator->EV();
 
-  // // // evaluator发送计算结果 garbler进行DE操作
   evaluator->sendOutput();
-  
+
   vector<uint8_t> gc_result = garbler->decode();
 
   EXPECT_EQ(sha256_result.size(), gc_result.size());
-  EXPECT_TRUE(std::equal(gc_result.begin(), gc_result.end(), sha256_result.begin()));
+  EXPECT_TRUE(
+      std::equal(gc_result.begin(), gc_result.end(), sha256_result.begin()));
 
+  //   std::ofstream outfile("SHAoutput.txt", std::ios::app);
+  // if (outfile.is_open()) {
+  //   outfile << "Garbler send: " << garbler->send_bytes << endl;
+  //   outfile << "Evaluator send: " << evaluator->send_bytes << endl;
+  //   outfile.close();
+  // }
+  std::cout << "Garbler send: " << garbler->send_bytes << endl;
+  std::cout.flush();
 }
 
 TEST(GCTest, AESTest) {
   std::shared_ptr<yacl::io::BFCircuit> circ_;
-  // 初始化
+
   GarblerAES* garbler = new GarblerAES();
-  EvaluatorAES * evaluator = new EvaluatorAES();
+  EvaluatorAES* evaluator = new EvaluatorAES();
 
   std::future<void> thread1 = std::async([&] { garbler->setup(); });
   std::future<void> thread2 = std::async([&] { evaluator->setup(); });
   thread1.get();
   thread2.get();
-  
-  
-  // 电路读取
+
   std::string pth =
       fmt::format("{0}/yacl/io/circuit/data/{1}.txt",
                   std::filesystem::current_path().string(), "aes_128");
   yacl::io::CircuitReader reader(pth);
   reader.ReadMeta();
   reader.ReadAllGates();
-  circ_ = reader.StealCirc();  // 指针
-
-  // 输入处理
-  // garbler->inputProcess(*circ_);
+  circ_ = reader.StealCirc();
 
   uint128_t key;
   uint128_t message;
@@ -129,32 +123,24 @@ TEST(GCTest, AESTest) {
   thread1.get();
   thread2.get();
 
-  // OT  
-  thread1 = std::async([&] { evaluator -> onLineOT();});
-  thread2 = std::async([&] { garbler -> onlineOT(); });
+  // OT
+  thread1 = std::async([&] { evaluator->onLineOT(); });
+  thread2 = std::async([&] { garbler->onlineOT(); });
   thread1.get();
   thread2.get();
-  
 
-  // 混淆方对整个电路进行混淆, 并将混淆表发送给evaluator
   garbler->GB();
   garbler->sendTable();
 
   evaluator->recvTable();
-  
 
-  // // 计算方进行计算 按拓扑顺序进行计算
   evaluator->EV();
 
-  // // // evaluator发送计算结果 garbler进行DE操作
   evaluator->sendOutput();
-  
+
   uint128_t gc_result = garbler->decode();
   auto aes = Aes128(ReverseBytes(key), ReverseBytes(message));
   EXPECT_EQ(ReverseBytes(gc_result), aes);
-
 }
 
-}
-
-
+}  // namespace examples::gc

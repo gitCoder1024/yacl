@@ -1,9 +1,9 @@
 diff --git a/aes_run.sh b/aes_run.sh
 new file mode 100644
-index 0000000..c1cf5ea
+index 0000000..20df3b7
 --- /dev/null
 +++ b/aes_run.sh
-@@ -0,0 +1,125 @@
+@@ -0,0 +1,126 @@
 +#!/bin/bash
 +cd build
 +
@@ -26,6 +26,7 @@ index 0000000..c1cf5ea
 +total=100
 +PROGRESS_WIDTH=20
 +echo "==================================AES BEGIN========================================="
++echo "Total Iteration: $total, Batch Size 1"
 +for ((i=1; i<=total; i++)); do
 +    # 计算进度条
 +    percent=$((i * 100 / total))
@@ -48,7 +49,7 @@ index 0000000..c1cf5ea
 +    recv_rounds_1=$(grep "recv rounds:" output1.log | awk '{print $8}' | tr -d ';')
 +    send_bytes_1=$(grep "party 1: send bytes:" output1.log | awk '{print $5}' | tr -d ';')
 +    recv_bytes_1=$(grep "recv bytes:" output1.log | awk '{print $5}' | tr -d ';')
-+    
++
 +    # 解析 party 2 数据（清理分号）
 +    send_rounds_2=$(grep "party 2: send rounds:" output2.log | awk '{print $5}' | tr -d ';')
 +    recv_rounds_2=$(grep "recv rounds:" output2.log | awk '{print $8}' | tr -d ';')
@@ -132,10 +133,10 @@ index 0000000..c1cf5ea
 \ No newline at end of file
 diff --git a/sha256_run.sh b/sha256_run.sh
 new file mode 100644
-index 0000000..56a78d8
+index 0000000..d49c3c6
 --- /dev/null
 +++ b/sha256_run.sh
-@@ -0,0 +1,126 @@
+@@ -0,0 +1,127 @@
 +#!/bin/bash
 +cd build
 +
@@ -158,6 +159,7 @@ index 0000000..56a78d8
 +total=100
 +PROGRESS_WIDTH=20
 +echo "==================================SHA256 BEGIN========================================="
++echo "Total Iteration: $total, Batch Size 1"
 +for ((i=1; i<=total; i++)); do
 +    # 计算进度条
 +    percent=$((i * 100 / total))
@@ -180,7 +182,7 @@ index 0000000..56a78d8
 +    recv_rounds_1=$(grep "recv rounds:" output1.log | awk '{print $8}' | tr -d ';')
 +    send_bytes_1=$(grep "party 1: send bytes:" output1.log | awk '{print $5}' | tr -d ';')
 +    recv_bytes_1=$(grep "recv bytes:" output1.log | awk '{print $5}' | tr -d ';')
-+    
++
 +    # 解析 party 2 数据（清理分号）
 +    send_rounds_2=$(grep "party 2: send rounds:" output2.log | awk '{print $5}' | tr -d ';')
 +    recv_rounds_2=$(grep "recv rounds:" output2.log | awk '{print $8}' | tr -d ';')
@@ -468,18 +470,3 @@ index 0000000..7925096
 +    finalize_semi_honest();
 +    delete io;
 +}
-diff --git a/test_aes_sha256.sh b/test_aes_sha256.sh
-new file mode 100644
-index 0000000..8b5cde6
---- /dev/null
-+++ b/test_aes_sha256.sh
-@@ -0,0 +1,9 @@
-+wget https://raw.githubusercontent.com/Rainysponge/emp-sh2pc/master/install_test.py
-+python install_test.py --deps --tool --ot --sh2pc
-+cd emp-sh2pc
-+mkdir build
-+cmake ..
-+make
-+cd ..
-+bash aes_run.sh
-+bash sha256_run.sh
